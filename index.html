@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Analysis Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .dropzone {
+            border: 2px dashed #4a90e2;
+            transition: all 0.3s ease;
+        }
+        .dropzone.dragover {
+            background: rgba(74, 144, 226, 0.1);
+            border-color: #2171c7;
+        }
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-[#99c1db] to-[#5c8ba6] p-4 md:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-6">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Image Analysis Tool</h1>
+        
+        <div id="dropzone" class="dropzone rounded-lg p-8 mb-6 text-center cursor-pointer">
+            <div class="flex flex-col items-center justify-center space-y-4">
+                <i class="bi bi-cloud-upload text-4xl text-[#4a90e2]"></i>
+                <p class="text-gray-600">Drag and drop your image here or click to upload</p>
+                <input type="file" id="fileInput" class="hidden" accept="image/*">
+            </div>
+        </div>
+
+        <div id="preview" class="hidden mb-6">
+            <img id="imagePreview" class="max-w-full h-auto mx-auto rounded-lg shadow-md" alt="Preview">
+            <button id="removeImage" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                Remove Image
+            </button>
+        </div>
+
+        <div id="loadingState" class="hidden text-center mb-6">
+            <i class="bi bi-arrow-repeat loading text-4xl text-[#4a90e2]"></i>
+            <p class="mt-2 text-gray-600">Analyzing image...</p>
+        </div>
+
+        <div id="result" class="hidden p-4 bg-gray-50 rounded-lg">
+            <h2 class="text-xl font-semibold mb-2 text-gray-800">Analysis Result:</h2>
+            <p id="analysisText" class="text-gray-700"></p>
+        </div>
+    </div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const imagePreview = document.getElementById('imagePreview');
+        const removeImage = document.getElementById('removeImage');
+        const loadingState = document.getElementById('loadingState');
+        const result = document.getElementById('result');
+        const analysisText = document.getElementById('analysisText');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropzone.classList.add('dragover');
+        }
+
+        function unhighlight() {
+            dropzone.classList.remove('dragover');
+        }
+
+        dropzone.addEventListener('drop', handleDrop, false);
+        dropzone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleChange);
+        removeImage.addEventListener('click', resetUpload);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleChange(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                        dropzone.classList.add('hidden');
+                        analyzeImage(e.target.result);
+                    }
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+
+        function resetUpload() {
+            preview.classList.add('hidden');
+            dropzone.classList.remove('hidden');
+            result.classList.add('hidden');
+            fileInput.value = '';
+            imagePreview.src = '';
+        }
+
+        async function analyzeImage(imageData) {
+            loadingState.classList.remove('hidden');
+            result.classList.add('hidden');
+
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/ai', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer rQO7EEudEVMgskfxID5m5Wgvelv2',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{
+                            role: "user",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: "What's in this image?"
+                                },
+                                {
+                                    type: "image_url",
+                                    image_url: {
+                                        url: imageData
+                                    }
+                                }
+                            ]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                analysisText.textContent = data.message;
+                result.classList.remove('hidden');
+            } catch (error) {
+                analysisText.textContent = "Error analyzing image. Please try again.";
+                result.classList.remove('hidden');
+            } finally {
+                loadingState.classList.add('hidden');
+            }
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
